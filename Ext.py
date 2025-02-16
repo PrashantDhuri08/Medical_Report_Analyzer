@@ -4,7 +4,7 @@ import google.generativeai as genai
 
 
 apikey="AIzaSyBy3yGbpJvuaMUx_R2sz-Ig3NACOBGzvtY"
-image= "./mock_report.jpg"
+image= "./rep.jpg"
 
 genai.configure(api_key=apikey)
 
