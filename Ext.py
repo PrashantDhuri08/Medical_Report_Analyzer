@@ -1,6 +1,7 @@
 import os
 import google.generativeai as genai
-
+import json
+import re
 
 
 apikey="AIzaSyBy3yGbpJvuaMUx_R2sz-Ig3NACOBGzvtY"
@@ -11,7 +12,7 @@ genai.configure(api_key=apikey)
 def upload_to_gemini(path, mime_type=None):
 
   file = genai.upload_file(image, mime_type=mime_type)
-  print(f"Uploaded file '{file.display_name}' as: {file.uri}")
+  # print(f"Uploaded file '{file.display_name}' as: {file.uri}")
   return file
 
 # Create the model
@@ -68,4 +69,43 @@ chat_session = model.start_chat(
 
 response = chat_session.send_message("Extract again")
 
-print(response.text)
+result= response.text
+
+
+# print(result)
+
+
+# Extract JSON from the response
+match = re.search(r"```json\n(.*?)\n```", result, re.DOTALL)
+if match:
+    json_text = match.group(1)
+else:
+    raise ValueError("No valid JSON found in response!")
+
+data = json.loads(json_text)
+
+print(f'Data : {data}')
+print("hemo:", data['Haemoglobin'])
+
+Haemoglobin = data['Haemoglobin']
+Hematocrit = data['Hematocrit (PCV)']
+RBC_Count = data['RBC Count']
+MCV = data['MCV']
+MCH = data['MCH']
+MCHC = data['MCHC']
+RDW_CV = data['RDW CV']
+RDW_SD = data['RDW SD']
+Total_Leucocyte_Count = data['Total Leucocyte Count']
+NEUTROPHILS = data['Neutrophils']
+LYMPHOCYTES = data['Lymphocytes']
+EOSINOPHILS = data['Eosinophils']
+BASOPHILS = data['Basophils']
+MONOCYTES = data['Monocytes']
+Platelet_Count = data['Platelet Count']
+MPV = data['Mean Platelet Volume (MPV)']
+gender = data['gender']
+Hct = data['Hct']
+PCT= data['PCT']
+PDW= data['PDW']
+
+
