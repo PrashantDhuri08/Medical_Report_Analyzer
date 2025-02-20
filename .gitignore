@@ -1,18 +1,10 @@
 myenv
 models/.ipynb_checkpoints
 
-Flaskapp/
-    __pycache__/
+
+Flaskapp/__pycache__
     .ipynb_checkpoints/
     .vscode/
-    .pytest_cache/
-    .mypy_cache/
-    .coverage
-    .pytest_cache/
-    .mypy_cache/
-    .coverage
-    .DS_Store
-    .env
-    .env.example
-    .envrc
-    .envrc.local
+
+
+Flaskapp/uploads
