@@ -6,7 +6,7 @@ import re
 from flask import Flask, request, jsonify
 # from Flaskapp.main import filenamae
 
-apikey="AIzaSyBy3yGbpJvuaMUx_R2sz-Ig3NACOBGzvtY"
+apikey = os.getenv('medapikey')
 image= "../rep.jpg"
 
 
