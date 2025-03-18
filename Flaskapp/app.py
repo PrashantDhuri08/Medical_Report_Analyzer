@@ -93,16 +93,7 @@ else:
 
 data = json.loads(json_text)
 
-# MCV = data['MCV']
 
-
-# print(f'Data : {data}')
-# print("hemo:", MCV)
-
-# rep_data=[{
-#   "MCV": MCV,
-
-# }]
 
 
 app = Flask(__name__)
@@ -114,9 +105,11 @@ def read_report():
   return jsonify(data)
 
 
-# Load the trained model 
+## Load the trained model *********************************************
 with open('LRmodel.pkl', 'rb') as f:  
-    model = pickle.load(f)
+    anemodel = pickle.load(f)
+
+
 
 # API endpoint to fetch the data
 API_URL = "http://localhost:5000/report"  
@@ -152,8 +145,8 @@ def predict_anemia():
         input_data = extract_features(api_data)
 
         # Make prediction
-        prediction = model.predict(input_data)[0]
-        prediction_proba = model.predict_proba(input_data)[0]  # Probability scores
+        prediction = anemodel.predict(input_data)[0]
+        prediction_proba = anemodel.predict_proba(input_data)[0]  # Probability scores
 
         # Prepare response
         result = {
