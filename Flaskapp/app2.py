@@ -8,11 +8,16 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
 import numpy as np
+from werkzeug.utils import secure_filename
 
 # Configuration
 API_KEY = os.getenv('medapikey')  # Ensure this environment variable is set
-IMAGE_PATH = "../rep.jpg"  # Path to the blood report image
+UPLOAD_FOLDER = './uploads'  # Directory to store uploaded images
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 API_URL = "http://localhost:5000/report"  # API endpoint for fetching report data
+
+# Ensure upload folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Configure Google Gemini API
 genai.configure(api_key=API_KEY)
@@ -20,6 +25,7 @@ genai.configure(api_key=API_KEY)
 # Flask app setup
 app = Flask(__name__)
 CORS(app)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Gemini model configuration
 GENERATION_CONFIG = {
@@ -35,6 +41,10 @@ SYSTEM_INSTRUCTION = (
     "Include gender (1 for male, 0 for female) and age from the report. Normalize 'Hemoglobin' and 'Haemoglobin' to 'Hemoglobin'. "
 )
 
+def allowed_file(filename):
+    """Check if the file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 def upload_to_gemini(path, mime_type="image/jpeg"):
     """Upload a file to Gemini and return the file object."""
     try:
@@ -46,17 +56,13 @@ def upload_to_gemini(path, mime_type="image/jpeg"):
 def extract_blood_report(image_path):
     """Extract blood report data from an image and return it as a JSON object."""
     try:
-        # Define the model within the function
         local_model = genai.GenerativeModel(
             model_name="gemini-2.0-flash",
             generation_config=GENERATION_CONFIG,
             system_instruction=SYSTEM_INSTRUCTION,
         )
 
-        # Upload the image
         uploaded_file = upload_to_gemini(image_path)
-
-        # Start a chat session with predefined history
         chat_session = local_model.start_chat(history=[
             {"role": "user", "parts": [uploaded_file]},
             {"role": "model", "parts": [
@@ -85,11 +91,9 @@ def extract_blood_report(image_path):
             ]}
         ])
 
-        # Send extraction request
         response = chat_session.send_message("Extract again")
         result = response.text
 
-        # Extract JSON from response
         match = re.search(r"```json\n(.*?)\n```", result, re.DOTALL)
         if not match:
             raise ValueError("No valid JSON found in response!")
@@ -97,11 +101,9 @@ def extract_blood_report(image_path):
         json_text = match.group(1)
         data = json.loads(json_text)
 
-        # Normalize Hemoglobin/Haemoglobin
         if "Haemoglobin" in data:
             data["Hemoglobin"] = data.pop("Haemoglobin")
         
-        # Ensure Age is present (case-insensitive)
         if "age" not in data and "Age" not in data:
             data["age"] = None
         elif "Age" in data:
@@ -114,7 +116,6 @@ def extract_blood_report(image_path):
 
 # Load the trained models
 def load_anemia_model(model_path='LRmodel.pkl'):
-    """Load the anemia model from a pickle file."""
     try:
         with open(model_path, 'rb') as f:
             return pickle.load(f)
@@ -122,7 +123,6 @@ def load_anemia_model(model_path='LRmodel.pkl'):
         raise RuntimeError(f"Failed to load anemia model from '{model_path}': {str(e)}")
 
 def load_dengue_model_and_scaler(model_path='./models/DeNN.pkl', scaler_path='./models/scaler.pkl'):
-    """Load the dengue model and scaler from pickle files."""
     try:
         with open(model_path, 'rb') as f:
             model = pickle.load(f)
@@ -137,9 +137,8 @@ dengue_model, dengue_scaler = load_dengue_model_and_scaler()
 
 # Feature extraction functions
 def extract_features_anemia(api_data):
-    """Extract and format features for anemia prediction."""
     try:
-        hemoglobin = api_data.get("Hemoglobin", api_data.get("Haemoglobin", 5))  # Default to 5 if missing
+        hemoglobin = api_data.get("Hemoglobin", api_data.get("Haemoglobin", 5))
         features = {
             'Gender': float(api_data['gender']),
             'Hemoglobin': float(hemoglobin),
@@ -154,58 +153,85 @@ def extract_features_anemia(api_data):
         raise ValueError(f"Invalid data type in API response: {e}")
 
 def extract_features_dengue(api_data):
-    """Extract and scale features for dengue prediction."""
     try:
         hemoglobin = api_data.get("Hemoglobin", api_data.get("Haemoglobin"))
         if hemoglobin is None:
             raise ValueError("Hemoglobin or Haemoglobin value is missing")
-
-        # Match the exact feature order from the sample input
         features = [
-            float(api_data.get("gender", 1)),  # Gender
-            float(api_data.get("age", 0)),     # Age (case-insensitive, default 0)
-            float(hemoglobin),                 # Hemoglobin
-            float(api_data.get("NEUTROPHILS", api_data.get("Neutrophils", 0))),  # Neutrophils
-            float(api_data.get("LYMPHOCYTES", api_data.get("Lymphocytes", 0))),  # Lymphocytes
-            float(api_data.get("MONOCYTES", api_data.get("Monocytes", 0))),      # Monocytes
-            float(api_data.get("EOSINOPHILS", api_data.get("Eosinophils", 0))),  # Eosinophils
-            float(api_data.get("RBC Count", 0)),  # RBC count
-            float(api_data.get("Hematocrit (PCV)", api_data.get("Hct", 0))),     # HCT
-            float(api_data.get("MCV", 0)),     # MCV
-            float(api_data.get("MCH", 0)),     # MCH
-            float(api_data.get("MCHC", 0)),    # MCHC
-            float(api_data.get("RDW CV", api_data.get("RDW-CV", 0))),           # RDW_CV
-            float(api_data.get("Platelet Count", 0)),  # Total Platelet Count
-            float(api_data.get("Mean Platelet Volume (MPV)", api_data.get("MPV", 0))),  # MPV
-            float(api_data.get("PDW", 0)),     # PDW
-            float(api_data.get("PCT", 0)),     # PCT
-            float(api_data.get("Total Leucocyte Count", 0))  # Total WBC Count
+            float(api_data.get("gender", 1)),
+            float(api_data.get("age", 0)),
+            float(hemoglobin),
+            float(api_data.get("NEUTROPHILS", api_data.get("Neutrophils", 0))),
+            float(api_data.get("LYMPHOCYTES", api_data.get("Lymphocytes", 0))),
+            float(api_data.get("MONOCYTES", api_data.get("Monocytes", 0))),
+            float(api_data.get("EOSINOPHILS", api_data.get("Eosinophils", 0))),
+            float(api_data.get("RBC Count", 0)),
+            float(api_data.get("Hematocrit (PCV)", api_data.get("Hct", 0))),
+            float(api_data.get("MCV", 0)),
+            float(api_data.get("MCH", 0)),
+            float(api_data.get("MCHC", 0)),
+            float(api_data.get("RDW CV", api_data.get("RDW-CV", 0))),
+            float(api_data.get("Platelet Count", 0)),
+            float(api_data.get("Mean Platelet Volume (MPV)", api_data.get("MPV", 0))),
+            float(api_data.get("PDW", 0)),
+            float(api_data.get("PCT", 0)),
+            float(api_data.get("Total Leucocyte Count", 0))
         ]
-
-        # Convert to NumPy array and reshape
         input_data = np.array(features).reshape(1, -1)
-        
-        # Scale the input data using the globally loaded scaler
         return dengue_scaler.transform(input_data)
-
     except KeyError as e:
         raise ValueError(f"Missing required feature: {e}")
     except ValueError as e:
         raise ValueError(f"Invalid data type in API response: {e}")
 
+# Global variable to store the latest extracted report data
+latest_report_data = None
+
 # API Endpoints
-@app.route('/report', methods=['GET'])
-def read_report():
-    """Return the extracted blood report data."""
+@app.route('/upload', methods=['POST'])
+def upload_report():
+    """Upload a blood report image and extract data."""
+    global latest_report_data
     try:
-        data = extract_blood_report(IMAGE_PATH)
-        return jsonify(data)
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+            
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type. Allowed types: jpg, jpeg, png'}), 400
+
+        filename = secure_filename(file.filename)
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(image_path)
+
+        # Extract data and store it globally
+        latest_report_data = extract_blood_report(image_path)
+        
+        # Optionally clean up the file (comment out if you want to keep it)
+        os.remove(image_path)
+
+        return jsonify({'message': 'Image uploaded and processed successfully', 'data': latest_report_data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/report', methods=['GET'])
+def get_report():
+    """Return the latest extracted blood report data."""
+    global latest_report_data
+    try:
+        if latest_report_data is None:
+            return jsonify({'error': 'No report data available. Please upload an image first.'}), 400
+        return jsonify(latest_report_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/predict/anemia', methods=['GET'])
 def predict_anemia():
-    """Predict anemia based on blood report data."""
+    """Predict anemia based on the latest blood report data."""
     try:
         response = requests.get(API_URL)
         response.raise_for_status()
@@ -216,7 +242,7 @@ def predict_anemia():
         prediction_proba = anemia_model.predict_proba(input_data)[0]
 
         result = {
-            'prediction': int(prediction),  # 0 = No Anemia, 1 = Anemia
+            'prediction': int(prediction),
             'confidence': float(max(prediction_proba)) * 100,
             'anemia_result': "Positive" if prediction_proba[1] > 0.5 else "Negative"
         }
@@ -231,20 +257,20 @@ def predict_anemia():
 
 @app.route('/predict/dengue', methods=['GET'])
 def predict_dengue():
-    """Predict dengue based on blood report data."""
+    """Predict dengue based on the latest blood report data."""
     try:
         response = requests.get(API_URL)
         response.raise_for_status()
         api_data = response.json()
 
         input_data = extract_features_dengue(api_data)
-        probabilities = dengue_model.predict(input_data)  # Keras predict returns [[P(positive)]]
-        probability_positive = probabilities[0][0]  # Single output neuron (sigmoid)
-        prediction = (probability_positive > 0.5).astype(int)  # Threshold at 0.5
+        probabilities = dengue_model.predict(input_data)
+        probability_positive = probabilities[0][0]
+        prediction = (probability_positive > 0.5).astype(int)
 
         result = {
-            'prediction': int(prediction),  # 0 = No Dengue, 1 = Dengue
-            'confidence': float(probability_positive) * 100,  # Probability of positive class
+            'prediction': int(prediction),
+            'confidence': float(probability_positive) * 100,
             'dengue_result': "Positive" if probability_positive > 0.5 else "Negative"
         }
         return jsonify(result)
