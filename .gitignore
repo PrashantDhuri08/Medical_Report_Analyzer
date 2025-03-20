@@ -1,10 +1,17 @@
 myenv
-models/.ipynb_checkpoints
-
+.ipynb_checkpoints
 
 Flaskapp/__pycache__
-    .ipynb_checkpoints/
-    .vscode/
 
 
 Flaskapp/uploads
+
+frontend
+__pycache__
+models
+api
+Flaskapp/app3.py
+Flaskapp/__init__.py
+*.txt
+*.csv
+dataset
