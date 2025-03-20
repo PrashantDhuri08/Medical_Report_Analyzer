@@ -100,14 +100,14 @@ def extract_blood_report(image_path):
     except Exception as e:
         raise RuntimeError(f"Error extracting blood report: {str(e)}")
 
-def load_anemia_model(model_path='models/LRmodel.pkl'):
+def load_anemia_model(model_path='./LRmodel.pkl'):
     try:
         with open(model_path, 'rb') as f:
             return pickle.load(f)
     except Exception as e:
         raise RuntimeError(f"Failed to load anemia model from '{model_path}': {str(e)}")
 
-def load_dengue_model_and_scaler(model_path='./models/dengue.keras', scaler_path='./models/scaler.pkl'):
+def load_dengue_model_and_scaler(model_path='./dengue.keras', scaler_path='./scaler.pkl'):
     """Load the dengue TensorFlow model (.keras) and scaler."""
     try:
         # Load TensorFlow model in .keras format
