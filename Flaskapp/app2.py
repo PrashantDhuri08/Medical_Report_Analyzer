@@ -15,7 +15,7 @@ import tensorflow as tf
 API_KEY = os.getenv('medapikey')
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
-API_URL = "http://localhost:5000/report"
+API_URL = "https://mrapi.onrender.com/report"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
