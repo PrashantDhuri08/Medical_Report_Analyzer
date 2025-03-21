@@ -12,6 +12,7 @@ models
 api
 Flaskapp/app3.py
 Flaskapp/__init__.py
-*.txt
+# *.txt
 *.csv
 dataset
+
