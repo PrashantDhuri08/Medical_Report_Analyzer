@@ -20,7 +20,7 @@ load_dotenv()
 
 # Configuration
 class Config:
-    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', '/app/uploads')
+    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', './uploads')
     ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
     BASE_API_URL = os.getenv('BASE_API_URL', 'http://localhost:5000')  # Will be updated by Render
     API_KEY = os.getenv('API_KEY')
