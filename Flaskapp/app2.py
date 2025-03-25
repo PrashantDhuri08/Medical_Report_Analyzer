@@ -287,7 +287,7 @@ def predict_anemia():
 
     except Exception as e:
         app.logger.error(f"Prediction failed: {str(e)}")
-        return jsonify({'error': f"Prediction failed: {str(e)}"}), 500ss
+        return jsonify({'error': f"Prediction failed: {str(e)}"}), 500
 
 # @app.route('/predict/anemia', methods=['GET'])
 # def predict_anemia():
