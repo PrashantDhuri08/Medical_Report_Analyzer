@@ -208,29 +208,114 @@ def get_report():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# @app.route('/predict/anemia', methods=['GET'])
+# def predict_anemia():
+#     try:
+#         response = requests.get(API_URL, timeout=10)
+#         response.raise_for_status()
+#         api_data = response.json()
+
+#         input_data = extract_features_anemia(api_data)
+#         prediction = anemia_model.predict(input_data)[0]
+#         prediction_proba = anemia_model.predict_proba(input_data)[0]
+
+#         result = {
+#             'prediction': int(prediction),
+#             'confidence': float(max(prediction_proba)) * 100,
+#             'anemia_result': "Positive" if prediction_proba[1] > 0.5 else "Negative"
+#         }
+#         return jsonify(result)
+#     except requests.RequestException as e:
+#         return jsonify({'error': f"Failed to fetch API data: {str(e)}"}), 500
+#     except ValueError as e:
+#         return jsonify({'error': str(e)}), 400
+#     except Exception as e:
+#         return jsonify({'error': f"Prediction failed: {str(e)}"}), 500
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 @app.route('/predict/anemia', methods=['GET'])
 def predict_anemia():
     try:
-        response = requests.get(API_URL)
-        response.raise_for_status()
-        api_data = response.json()
+        # Log the start of the process
+        app.logger.info("Fetching data from external API...")
 
+        # Fetch data from the external API with a timeout
+        response = requests.get(API_URL, timeout=10)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        app.logger.info(f"API Response Status: {response.status_code}")
+
+        # Parse and validate the API response
+        api_data = response.json()
+        if not api_data:
+            app.logger.error("API returned empty data.")
+            return jsonify({'error': 'API returned empty data.'}), 400
+
+        app.logger.info(f"API Data Received: {api_data}")
+
+        # Extract features for prediction
         input_data = extract_features_anemia(api_data)
+        app.logger.info(f"Extracted Input Data for Anemia Model: {input_data}")
+
+        # Perform prediction
         prediction = anemia_model.predict(input_data)[0]
         prediction_proba = anemia_model.predict_proba(input_data)[0]
 
+        # Prepare result
         result = {
             'prediction': int(prediction),
             'confidence': float(max(prediction_proba)) * 100,
             'anemia_result': "Positive" if prediction_proba[1] > 0.5 else "Negative"
         }
+        app.logger.info(f"Prediction Result: {result}")
+        
         return jsonify(result)
+
     except requests.RequestException as e:
+        app.logger.error(f"Failed to fetch API data: {str(e)}")
         return jsonify({'error': f"Failed to fetch API data: {str(e)}"}), 500
+
+    except KeyError as e:
+        app.logger.error(f"Missing expected data in API response: {str(e)}")
+        return jsonify({'error': f"Missing expected data in API response: {str(e)}"}), 400
+
     except ValueError as e:
-        return jsonify({'error': str(e)}), 400
+        app.logger.error(f"Invalid data in API response: {str(e)}")
+        return jsonify({'error': f"Invalid data in API response: {str(e)}"}), 400
+
     except Exception as e:
-        return jsonify({'error': f"Prediction failed: {str(e)}"}), 500
+        app.logger.error(f"Prediction failed: {str(e)}")
+        return jsonify({'error': f"Prediction failed: {str(e)}"}), 500ss
+
+# @app.route('/predict/anemia', methods=['GET'])
+# def predict_anemia():
+#     try:
+#         app.logger.info("Fetching data from external API...")
+#         response = requests.get(API_URL, timeout=10)
+#         response.raise_for_status()
+
+#         api_data = response.json()
+#         app.logger.info(f"API Response: {api_data}")
+
+#         input_data = extract_features_anemia(api_data)
+#         app.logger.info(f"Input Data: {input_data}")
+
+#         prediction = anemia_model.predict(input_data)[0]
+#         prediction_proba = anemia_model.predict_proba(input_data)[0]
+
+#         result = {
+#             'prediction': int(prediction),
+#             'confidence': float(max(prediction_proba)) * 100,
+#             'anemia_result': "Positive" if prediction_proba[1] > 0.5 else "Negative"
+#         }
+#         app.logger.info(f"Prediction Result: {result}")
+#         return jsonify(result)
+
+#     except Exception as e:
+#         app.logger.error(f"Error in predict_anemia: {str(e)}")
+#         return jsonify({'error': str(e)}), 500
 
 @app.route('/predict/dengue', methods=['GET'])
 def predict_dengue():
